@@ -1,8 +1,10 @@
 use data_encoding::BASE64;
+use hyper::{Body, Method, Request, Uri, Client, client::HttpConnector};
 
 pub struct BitBucket<'a> {
     pub auth_header: (&'a str, String),
     pub project_url: String,
+    client: Client<HttpConnector>
 }
 
 impl<'a> BitBucket<'a> {
@@ -18,9 +20,12 @@ impl<'a> BitBucket<'a> {
             project = project
         );
 
+        let client = Client::new();
+
         Self {
             auth_header: ("Authorization", base64),
             project_url,
+            client
         }
     }
 
@@ -34,5 +39,14 @@ impl<'a> BitBucket<'a> {
 
     async fn get_next_page(self, current_url: &str, current_page: usize) {
         todo!("not implemented")
+    }
+
+    #[tokio::main]
+    pub async fn request(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let uri = self.project_url.parse()?;
+        let resp = self.client.get(uri).await?;
+
+        println!("Response: {}", resp.status());
+        Ok(())
     }
 }
