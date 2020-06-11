@@ -1,34 +1,36 @@
-use data_encoding::BASE64;
-use hyper::{Body, Method, Request, Uri, Client, client::HttpConnector};
-use hyper_tls::HttpsConnector;
+use std::collections::HashMap;
 
-pub struct BitBucket<'a> {
-    pub auth_header: (&'a str, String),
+use data_encoding::BASE64;
+use reqwest::{Client, header, Url};
+use serde_json::Value;
+
+pub struct BitBucket {
     pub project_url: String,
-    client: Client<HttpsConnector<hyper::client::HttpConnector>>
+    client: Client,
 }
 
-impl<'a> BitBucket<'a> {
+impl<'a> BitBucket {
     const PR_PATH: &'a str = "/{repo}/pull-requests";
 
     pub fn new(user: &str, password: &str, host: &str, project: &str) -> Self {
-        let credentials = format!("{}:{}", user, password);
-        let base64 = BASE64.encode(credentials.as_bytes());
-
         let project_url = format!(
             "https://{host}/rest/api/1.0/projects/{project}/repos",
             host = host,
             project = project
         );
+        let credentials = format!("{}:{}", user, password);
+        let base64 = format!("Basic {}", BASE64.encode(credentials.as_bytes()));
+        let mut headers = header::HeaderMap::new();
+        headers.append(header::AUTHORIZATION, header::HeaderValue::from_str(&base64).unwrap());
 
-        let https = HttpsConnector::new();
-        let client = Client::builder()
-            .build::<_, Body>(https);
+        let client =  Client::builder()
+            .default_headers(headers)
+            .build()
+            .expect("Failed to build HTTP client");
 
         Self {
-            auth_header: ("Authorization", base64),
             project_url,
-            client
+            client,
         }
     }
 
@@ -45,11 +47,16 @@ impl<'a> BitBucket<'a> {
     }
 
     #[tokio::main]
-    pub async fn request(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let uri = self.project_url.parse()?;
-        let resp = self.client.get(uri).await?;
+    pub async fn request(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let url = Url::parse(&self.project_url)?;
+        let response = self.client.get(url)
+            .send()
+            .await?
+            .json::<HashMap<String, Value>>()
+            .await?;
 
-        println!("Response: {}", resp.status());
+        println!("{:#?}", response);
+
         Ok(())
     }
 }
