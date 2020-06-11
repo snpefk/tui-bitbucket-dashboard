@@ -1,10 +1,11 @@
 use data_encoding::BASE64;
 use hyper::{Body, Method, Request, Uri, Client, client::HttpConnector};
+use hyper_tls::HttpsConnector;
 
 pub struct BitBucket<'a> {
     pub auth_header: (&'a str, String),
     pub project_url: String,
-    client: Client<HttpConnector>
+    client: Client<HttpsConnector<hyper::client::HttpConnector>>
 }
 
 impl<'a> BitBucket<'a> {
@@ -20,7 +21,9 @@ impl<'a> BitBucket<'a> {
             project = project
         );
 
-        let client = Client::new();
+        let https = HttpsConnector::new();
+        let client = Client::builder()
+            .build::<_, Body>(https);
 
         Self {
             auth_header: ("Authorization", base64),
