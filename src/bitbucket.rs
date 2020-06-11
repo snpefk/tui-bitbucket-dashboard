@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use data_encoding::BASE64;
-use reqwest::{Client, header, Url};
+use reqwest::{header, Client, Url};
 use serde_json::Value;
 
 pub struct BitBucket {
@@ -21,9 +21,12 @@ impl<'a> BitBucket {
         let credentials = format!("{}:{}", user, password);
         let base64 = format!("Basic {}", BASE64.encode(credentials.as_bytes()));
         let mut headers = header::HeaderMap::new();
-        headers.append(header::AUTHORIZATION, header::HeaderValue::from_str(&base64).unwrap());
+        headers.append(
+            header::AUTHORIZATION,
+            header::HeaderValue::from_str(&base64).unwrap(),
+        );
 
-        let client =  Client::builder()
+        let client = Client::builder()
             .default_headers(headers)
             .build()
             .expect("Failed to build HTTP client");
@@ -34,8 +37,46 @@ impl<'a> BitBucket {
         }
     }
 
-    pub async fn request_repos(self) {
-        todo!("not implemented");
+    #[tokio::main]
+    pub async fn request_repos(
+        &self,
+    ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+        let url = Url::parse(&self.project_url)?;
+        let current_page = self
+            .client
+            .get(url)
+            .send()
+            .await?
+            .json::<HashMap<String, Value>>()
+            .await?;
+
+        let values = current_page["values"]
+            .as_array()
+            .expect("Can't parse repository values")
+            .to_owned();
+
+        let mut pages: Vec<Vec<Value>> = Vec::new();
+        pages.push(values);
+
+        while !current_page["isLastPage"].as_bool().unwrap_or(false) {
+            let url = Url::parse(&self.project_url)?;
+            let current_page = self
+                .client
+                .get(url)
+                .query(&[("start", current_page["nextPageStart"].as_i64().unwrap())])
+                .send()
+                .await?
+                .json::<HashMap<String, Value>>()
+                .await?;
+
+            let values = current_page["values"]
+                .as_array()
+                .expect("Can't parse repository values")
+                .to_owned();
+
+            pages.push(values)
+        }
+        Ok(pages.concat())
     }
 
     pub async fn request_pr_data(self) {
@@ -44,19 +85,5 @@ impl<'a> BitBucket {
 
     async fn get_next_page(self, current_url: &str, current_page: usize) {
         todo!("not implemented")
-    }
-
-    #[tokio::main]
-    pub async fn request(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let url = Url::parse(&self.project_url)?;
-        let response = self.client.get(url)
-            .send()
-            .await?
-            .json::<HashMap<String, Value>>()
-            .await?;
-
-        println!("{:#?}", response);
-
-        Ok(())
     }
 }
