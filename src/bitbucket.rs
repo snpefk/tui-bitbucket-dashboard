@@ -23,4 +23,16 @@ impl<'a> BitBucket<'a> {
             project_url,
         }
     }
+
+    pub async fn request_repos(self) {
+        todo!("not implemented");
+    }
+
+    pub async fn request_pr_data(self) {
+        todo!("not implemented")
+    }
+
+    async fn get_next_page(self, current_url: &str, current_page: usize) {
+        todo!("not implemented")
+    }
 }
