@@ -121,8 +121,4 @@ impl BitBucket {
 
         Ok(pages.concat())
     }
-
-    async fn get_next_page(self, current_url: &str, current_page: usize) {
-        todo!("not implemented")
-    }
 }
