@@ -35,7 +35,6 @@ impl BitBucket {
         }
     }
 
-    #[tokio::main]
     pub async fn request_repos(
         &self,
     ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
@@ -77,7 +76,6 @@ impl BitBucket {
         Ok(pages.concat())
     }
 
-    #[tokio::main]
     pub async fn request_pr_data(
         &self,
         repository: &str,
