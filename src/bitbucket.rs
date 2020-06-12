@@ -9,9 +9,7 @@ pub struct BitBucket {
     client: Client,
 }
 
-impl<'a> BitBucket {
-    const PR_PATH: &'a str = "/{repo}/pull-requests";
-
+impl BitBucket {
     pub fn new(user: &str, password: &str, host: &str, project: &str) -> Self {
         let project_url = format!(
             "https://{host}/rest/api/1.0/projects/{project}/repos",
@@ -79,8 +77,51 @@ impl<'a> BitBucket {
         Ok(pages.concat())
     }
 
-    pub async fn request_pr_data(self) {
-        todo!("not implemented")
+    #[tokio::main]
+    pub async fn request_pr_data(
+        &self,
+        repository: &str,
+    ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
+        let path = format!("/{repo}/pull-requests", repo = repository);
+        let url = Url::parse(&self.project_url)?.join(&path)?;
+
+        let current_page = self
+            .client
+            .get(url)
+            .send()
+            .await?
+            .json::<HashMap<String, Value>>()
+            .await?;
+        let values = current_page["values"]
+            .as_array()
+            .expect("Can't parse repository values")
+            .to_owned();
+        
+        let mut pages = Vec::new();
+        pages.push(values);
+
+        while !current_page["isLastPage"].as_bool().unwrap_or(false) { 
+            let path = format!("/{repo}/pull-requests", repo = repository);
+            let url = Url::parse(&self.project_url)?.join(&path)?;
+
+            let current_page = self
+                .client
+                .get(url)
+                .query(&[("start", current_page["nextPageStart"].as_i64().unwrap())])
+                .send()
+                .await?
+                .json::<HashMap<String, Value>>()
+                .await?;
+
+            let values = current_page["values"]
+                .as_array()
+                .expect("Can't parse repository values")
+                .to_owned();
+
+            pages.push(values)
+        }
+
+        Ok(pages.concat())
     }
 
     async fn get_next_page(self, current_url: &str, current_page: usize) {
