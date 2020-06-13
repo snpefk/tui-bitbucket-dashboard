@@ -1,6 +1,6 @@
 use std::io;
 
-use termion::raw::IntoRawMode;
+use termion::{event::Key, raw::IntoRawMode};
 use tui::{
     backend::TermionBackend,
     layout::{Constraint, Direction, Layout},
@@ -11,6 +11,12 @@ use tui::{
 
 mod bitbucket;
 use bitbucket::BitBucket;
+
+mod event;
+use event::{Event, Events};
+
+mod utils;
+use utils::StatefulList;
 
 struct App {
     user: String,
@@ -23,10 +29,16 @@ impl Default for App {
     fn default() -> Self {
         let mut args = std::env::args();
         args.next();
-        let user = args.next().expect("first argument must be username");
-        let password = args.next().expect("second argument must be password");
-        let host = args.next().expect("third argument must be host");
-        let project = args.next().expect("fourth argument must be project");
+
+        std::env::vars().for_each(|x| println!("{}:{}", x.0, x.1));
+        let user = std::env::var("TUI_PR_USER")
+            .unwrap_or_else(|x| args.next().expect("first argument must be username"));
+        let password = std::env::var("TUI_PR_PASSWORD")
+            .unwrap_or_else(|x| args.next().expect("second argument must be password"));
+        let host = std::env::var("TUI_PR_HOST")
+            .unwrap_or_else(|x| args.next().expect("third argument must be host"));
+        let project = std::env::var("TUI_PR_PROJECT")
+            .unwrap_or_else(|x| args.next().expect("fourth argument must be project"));
 
         App {
             user,
@@ -39,7 +51,7 @@ impl Default for App {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let app = App::default();
+    let mut app = App::default();
     let bitbucket = BitBucket::new(&app.user, &app.password, &app.host, &app.project);
     let stdout = io::stdout().into_raw_mode()?;
     let backend = TermionBackend::new(stdout);
@@ -55,6 +67,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(String::from)
         .collect::<Vec<String>>();
 
+    let mut repos = StatefulList::with_items(repos);
+    let events = Events::new();
+
     loop {
         terminal.draw(|mut f| {
             let chunks = Layout::default()
@@ -65,14 +80,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let style = Style::default();
 
-            let items = repos.iter().map(|i| Text::raw(format!("{}", i)));
+            let items = repos.items.iter().map(|i| Text::raw(format!("{}", i)));
             let items = List::new(items)
                 .block(Block::default().borders(Borders::ALL).title("Repositories"))
                 .style(style)
                 .highlight_style(style.fg(Color::LightGreen).modifier(Modifier::BOLD))
                 .highlight_symbol(">");
 
-            f.render_widget(items, chunks[0]);
+            f.render_stateful_widget(items, chunks[0], &mut repos.state);
         })?;
+
+        match events.next()? {
+            Event::Input(input) => match input {
+                Key::Char('q') => {
+                    break;
+                }
+                Key::Left => repos.unselect(),
+                Key::Down => {
+                    repos.next();
+                }
+                Key::Up => {
+                    repos.previous();
+                }
+                _ => {}
+            },
+            Event::Tick => {}
+        };
     }
+    Ok(())
 }
