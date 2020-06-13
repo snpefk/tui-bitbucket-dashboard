@@ -94,11 +94,11 @@ impl BitBucket {
             .as_array()
             .expect("Can't parse repository values")
             .to_owned();
-        
+
         let mut pages = Vec::new();
         pages.push(values);
 
-        while !current_page["isLastPage"].as_bool().unwrap_or(false) { 
+        while !current_page["isLastPage"].as_bool().unwrap_or(false) {
             let path = format!("/{repo}/pull-requests", repo = repository);
             let url = Url::parse(&self.project_url)?.join(&path)?;
 
