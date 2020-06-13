@@ -52,4 +52,8 @@ impl<T> StatefulList<T> {
     pub fn unselect(&mut self) {
         self.state.select(None);
     }
+
+    pub fn selected(&self) -> Option<usize> {
+        self.state.selected()
+    }
 }

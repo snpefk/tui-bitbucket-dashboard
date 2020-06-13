@@ -12,7 +12,7 @@ pub struct BitBucket {
 impl BitBucket {
     pub fn new(user: &str, password: &str, host: &str, project: &str) -> Self {
         let project_url = format!(
-            "https://{host}/rest/api/1.0/projects/{project}/repos",
+            "https://{host}/rest/api/1.0/projects/{project}/repos/",
             host = host,
             project = project
         );
@@ -80,7 +80,7 @@ impl BitBucket {
         &self,
         repository: &str,
     ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
-        let path = format!("/{repo}/pull-requests", repo = repository);
+        let path = format!("{repo}/pull-requests", repo = repository);
         let url = Url::parse(&self.project_url)?.join(&path)?;
 
         let current_page = self
