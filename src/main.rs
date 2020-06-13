@@ -51,7 +51,7 @@ impl Default for App {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = App::default();
+    let app = App::default();
     let bitbucket = BitBucket::new(&app.user, &app.password, &app.host, &app.project);
     let stdout = io::stdout().into_raw_mode()?;
     let backend = TermionBackend::new(stdout);
@@ -79,15 +79,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .split(f.size());
 
             let style = Style::default();
-
             let items = repos.items.iter().map(|i| Text::raw(format!("{}", i)));
-            let items = List::new(items)
+            let repo_list = List::new(items)
                 .block(Block::default().borders(Borders::ALL).title("Repositories"))
                 .style(style)
                 .highlight_style(style.fg(Color::LightGreen).modifier(Modifier::BOLD))
                 .highlight_symbol(">");
 
-            f.render_stateful_widget(items, chunks[0], &mut repos.state);
+            
+            f.render_stateful_widget(repo_list, chunks[0], &mut repos.state);
         })?;
 
         match events.next()? {
