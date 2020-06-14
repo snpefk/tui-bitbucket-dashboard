@@ -1,23 +1,21 @@
+mod bitbucket;
+mod event;
+mod utils;
+
 use std::collections::HashMap;
 use std::io;
 
 use termion::{event::Key, raw::IntoRawMode};
 use tui::{
     backend::TermionBackend,
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{BarChart, Block, Borders, List, Paragraph, Text},
+    widgets::{BarChart, Block, Borders, List, Text},
     Terminal,
 };
 
-mod bitbucket;
 use bitbucket::BitBucket;
-
-mod event;
 use event::{Event, Events};
-
-mod utils;
-use serde_json::Value;
 use utils::StatefulList;
 
 struct App {
@@ -25,7 +23,6 @@ struct App {
 
     repositories: StatefulList<String>,
     reviewers: Vec<(String, u64)>,
-    data: Vec<Value>,
 }
 
 impl App {
@@ -46,9 +43,8 @@ impl App {
 
         App {
             storage,
-            repositories: StatefulList::new(),
+            repositories: StatefulList::default(),
             reviewers: Vec::new(),
-            data: Vec::new(),
         }
     }
 
@@ -68,32 +64,29 @@ impl App {
     }
 
     async fn download_reviwers(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        match self.repositories.selected() {
-            Some(i) => match self.repositories.items.get(i) {
-                Some(repo_name) => {
-                    let mut frequency: HashMap<String, u64> = HashMap::new();
-                    self.storage
-                        .request_pr_data(repo_name)
-                        .await?
-                        .iter()
-                        .filter_map(|pr| pr["reviewers"].as_array())
-                        .flatten()
-                        .filter_map(|reviwer| reviwer["user"]["displayName"].as_str())
-                        .for_each(|reviewer_name| {
-                            let name: Vec<&str> = reviewer_name.split(" ").collect();
-                            let name = format!("{} {}", name[0], name[1]);
-                            let counter = frequency.entry(name).or_insert(0);
-                            *counter += 1;
-                        });
+        if let Some(repo_name) = self
+            .repositories
+            .selected()
+            .and_then(|i| self.repositories.items.get(i))
+        {
+            let mut frequency: HashMap<String, u64> = HashMap::new();
+            self.storage
+                .request_pr_data(repo_name)
+                .await?
+                .iter()
+                .filter_map(|pr| pr["reviewers"].as_array())
+                .flatten()
+                .filter_map(|reviwer| reviwer["user"]["displayName"].as_str())
+                .for_each(|reviewer_name| {
+                    let name: Vec<&str> = reviewer_name.split(" ").collect();
+                    let name = format!("{} {}", name[0], name[1]);
+                    let counter = frequency.entry(name).or_insert(0);
+                    *counter += 1;
+                });
 
-                    self.reviewers = frequency.into_iter().map(|x| x).collect();
-                    self.reviewers.sort_by(|x, y| y.1.cmp(&x.1))
-                }
-                None => {}
-            },
-            None => {}
+            self.reviewers = frequency.into_iter().map(|x| x).collect();
+            self.reviewers.sort_by(|x, y| y.1.cmp(&x.1))
         };
-
         Ok(())
     }
 }

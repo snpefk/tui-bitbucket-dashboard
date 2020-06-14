@@ -1,18 +1,19 @@
-/// Download from https://github.com/fdehau/tui-rs/blob/master/examples/util/mod.rs
+/// Forked from https://github.com/fdehau/tui-rs/blob/master/examples/util/mod.rs
 use tui::widgets::ListState;
 
+#[derive(Default)]
 pub struct StatefulList<T> {
     pub state: ListState,
     pub items: Vec<T>,
 }
 
 impl<T> StatefulList<T> {
-    pub fn new() -> StatefulList<T> {
-        StatefulList {
-            state: ListState::default(),
-            items: Vec::new(),
-        }
-    }
+    // pub fn new() -> StatefulList<T> {
+    //     StatefulList {
+    //         state: ListState::default(),
+    //         items: Vec::new(),
+    //     }
+    // }
 
     pub fn with_items(items: Vec<T>) -> StatefulList<T> {
         StatefulList {
