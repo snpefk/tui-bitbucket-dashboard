@@ -82,8 +82,8 @@ impl BitBucket {
     ) -> Result<Vec<serde_json::Value>, Box<dyn std::error::Error>> {
         let path = format!("{repo}/pull-requests", repo = repository);
         let url = Url::parse(&self.project_url)?.join(&path)?;
-
-        let current_page = self
+        
+        let mut current_page = self
             .client
             .get(url)
             .send()
@@ -99,10 +99,10 @@ impl BitBucket {
         pages.push(values);
 
         while !current_page["isLastPage"].as_bool().unwrap_or(false) {
-            let path = format!("/{repo}/pull-requests", repo = repository);
+            let path = format!("{repo}/pull-requests", repo = repository);
             let url = Url::parse(&self.project_url)?.join(&path)?;
 
-            let current_page = self
+            current_page = self
                 .client
                 .get(url)
                 .query(&[("start", current_page["nextPageStart"].as_i64().unwrap())])
